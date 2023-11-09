@@ -5,19 +5,19 @@
 // #include <ArduinoJson.h>
 #include <WiFi.h>
 
-class WifiControl {
+class AutoConnect {
 private:
     WiFiClass &pWiFi;
 
-    static WifiControl *instance;
+    static AutoConnect *instance;
     static void _wifiEvent(WiFiEvent_t);
 
 public:
-    WifiControl(WiFiClass &);
+    AutoConnect(WiFiClass &);
     StaticJsonDocument<96> getWifiAuthen();
     bool saveWifiAuthen(String, String);
     bool removeWifiAuthen();
 };
-extern WifiControl *instance;
+extern AutoConnect *instance;
 
 #endif

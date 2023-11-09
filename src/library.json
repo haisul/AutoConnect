@@ -1,0 +1,38 @@
+{
+    "name": "AutoConnect",
+    "version": "1.0.2",
+    "description": "Your library description",
+    "keywords": [
+        "key1",
+        "key2"
+    ],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/haisul/AutoConnect"
+    },
+    "frameworks": [
+        "arduino"
+    ],
+    "platforms": [
+        "espressif8266",
+        "espressif32"
+    ],
+    "dependencies": [
+        {
+            "name": "ArduinoJson",
+            "url": "https://github.com/bblanchon/ArduinoJson.git"
+        },
+        {
+            "name": "littlefsfun",
+            "version": "1.0.0"
+        }
+    ],
+    "authors": [
+        {
+            "name": "Haisul0912",
+            "email": "ex2252@gmail.com",
+            "maintainer": true
+        }
+    ],
+    "license": "MIT"
+}

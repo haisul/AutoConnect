@@ -1,7 +1,7 @@
-#include "wifiControl.h"
+#include "AutoConnect.h"
 
-WifiControl *WifiControl::instance = nullptr;
-WifiControl::WifiControl(WiFiClass &WiFi) : pWiFi(WiFi) {
+AutoConnect *AutoConnect::instance = nullptr;
+AutoConnect::AutoConnect(WiFiClass &WiFi) : pWiFi(WiFi) {
     instance = this;
     pWiFi.onEvent(_wifiEvent);
     StaticJsonDocument<96> j_wifi = getWifiAuthen();
@@ -15,7 +15,7 @@ WifiControl::WifiControl(WiFiClass &WiFi) : pWiFi(WiFi) {
     }
 }
 
-StaticJsonDocument<96> WifiControl::getWifiAuthen() {
+StaticJsonDocument<96> AutoConnect::getWifiAuthen() {
     if (!initLittleFS()) {
         Serial.println("load wifi data Failed!");
         return StaticJsonDocument<96>();
@@ -34,7 +34,7 @@ StaticJsonDocument<96> WifiControl::getWifiAuthen() {
     }
 }
 
-bool WifiControl::saveWifiAuthen(String ssid, String pass) {
+bool AutoConnect::saveWifiAuthen(String ssid, String pass) {
     StaticJsonDocument<96> j_wifi;
     j_wifi["SSID"] = ssid;
     j_wifi["PASSWORD"] = pass;
@@ -45,7 +45,7 @@ bool WifiControl::saveWifiAuthen(String ssid, String pass) {
     return true;
 }
 
-bool WifiControl::removeWifiAuthen() {
+bool AutoConnect::removeWifiAuthen() {
     if (!initLittleFS()) {
         return false;
     } else {
@@ -55,7 +55,7 @@ bool WifiControl::removeWifiAuthen() {
     }
 }
 
-void WifiControl::_wifiEvent(WiFiEvent_t event) {
+void AutoConnect::_wifiEvent(WiFiEvent_t event) {
     Serial.printf("[WiFi-event] event: %d\n", event);
     switch (event) {
     case SYSTEM_EVENT_STA_GOT_IP:
