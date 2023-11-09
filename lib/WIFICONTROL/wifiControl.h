@@ -1,7 +1,8 @@
 #ifndef __WIFICONTROL_H_
 #define __WIFICONTROL_H_
 #include "ArduinoJson.h"
-#include "Littlefsfun/littlefsfun.h"
+#include "LITTLEFSFUN/littlefsfun.h"
+// #include <ArduinoJson.h>
 #include <WiFi.h>
 
 class WifiControl {
