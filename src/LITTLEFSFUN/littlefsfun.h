@@ -10,6 +10,7 @@
 #include <LittleFS.h>
 
 #ifndef CONFIG_LITTLEFS_FOR_IDF_3_2
+#include "loggerESP/loggerESP.h"
 #include <time.h>
 #endif
 #define FORMAT_LITTLEFS_IF_FAILED true

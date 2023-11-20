@@ -7,35 +7,39 @@ AutoConnect::AutoConnect(WiFiClass &WiFi) : pWiFi(WiFi) {
 }
 
 void AutoConnect::begin() {
+    if (pWiFi.status() != WL_CONNECTED) {
+        StaticJsonDocument<96> j_wifi = _getWifiAuthen();
+        if (!j_wifi.isNull()) {
+            String _ssid = j_wifi["SSID"].as<String>();
+            String _pass = j_wifi["PASSWORD"].as<String>();
+            pWiFi.begin(_ssid.c_str(), _pass.c_str());
+            pWiFi.mode(WIFI_STA);
+        } else {
 
-    StaticJsonDocument<96> j_wifi = _getWifiAuthen();
-    if (!j_wifi.isNull()) {
-        String _ssid = j_wifi["SSID"].as<String>();
-        String _pass = j_wifi["PASSWORD"].as<String>();
-        pWiFi.begin(_ssid.c_str(), _pass.c_str());
-        pWiFi.mode(WIFI_STA);
-    } else {
-        if (pWiFi.getMode() == WIFI_STA) {
-            _beginServer();
+            if (pWiFi.getMode() == WIFI_AP_STA) {
+                _beginServer();
+            }
         }
+    } else {
+        Logger(LW, "WIFI is already connected!");
     }
 }
 
 StaticJsonDocument<96> AutoConnect::_getWifiAuthen() {
     if (!initLittleFS()) {
-        Serial.println("load wifi data Failed!");
+        Logger(LE, "load wifi data Failed!");
         return StaticJsonDocument<96>();
     } else {
         StaticJsonDocument<96> j_wifi;
         String readWifiStr = readFile(LittleFS, "/wifi/wifi.txt");
-        DeserializationError error = deserializeJson(j_wifi, readWifiStr);
-        if (error) {
-            Serial.printf("deserialize wifi data Failed: %s\n", error.c_str());
+        DeserializationError errorMsg = deserializeJson(j_wifi, readWifiStr);
+        if (errorMsg) {
+            Logger(LE, "deserialize wifi data Failed: %s", errorMsg.c_str());
             return StaticJsonDocument<96>();
         }
 
-        Serial.println(readWifiStr.c_str());
-        Serial.println("WIFI data load complete");
+        Logger(LN, readWifiStr.c_str());
+        Logger(LN, "WIFI data load complete");
         return j_wifi;
     }
 }
@@ -47,7 +51,7 @@ bool AutoConnect::saveWifiAuthen(String ssid, String pass) {
     String wifiStr;
     serializeJson(j_wifi, wifiStr);
     writeFile2(LittleFS, "/wifi/wifi.txt", wifiStr.c_str());
-    Serial.printf("Wifi data is saved\n%s\n", wifiStr.c_str());
+    Logger(LN, "Wifi data is saved: %s", wifiStr.c_str());
     return true;
 }
 
@@ -56,19 +60,16 @@ bool AutoConnect::removeWifiAuthen() {
         return false;
     } else {
         deleteFile(LittleFS, "/wifi/wifi.txt");
-        Serial.println("Wifi data is removed");
+        Logger(LN, "Wifi data is removed");
         return true;
     }
 }
 
 void AutoConnect::_wifiEvent(WiFiEvent_t event) {
-    Serial.printf("[WiFi-event] event: %d\n", event);
+    Logger(LN, "[WiFi-event] event: %d", event);
     switch (event) {
     case SYSTEM_EVENT_STA_GOT_IP:
-        Serial.println(instance->pWiFi.SSID());
-        Serial.println(instance->pWiFi.psk());
-        Serial.println(instance->pWiFi.localIP());
-        Serial.println(instance->pWiFi.RSSI());
+        Logger(LN, "SSID:%s PSK:%s IP:%s RSSI:%d", instance->pWiFi.SSID(), instance->pWiFi.psk(), instance->pWiFi.localIP().toString().c_str(), instance->pWiFi.RSSI());
         instance->saveWifiAuthen(instance->pWiFi.SSID().c_str(), instance->pWiFi.psk().c_str());
         if (instance->wifiConnectedCallback) {
             instance->wifiConnectedCallback();
@@ -87,7 +88,7 @@ void AutoConnect::setWifiConnectedCallback(void (*callback)(void)) {
 /////////////////////////////////////////////////////////////
 
 void AutoConnect::_beginServer() {
-    Serial.println("beginServer");
+    Logger(LN, "WiFi Server Begin");
     AutoConnect *params = this;
     xTaskCreatePinnedToCore(taskFunctionStart, "serverLoop", 8192, (void *)params, 1, &taskHandle, 1);
 }
@@ -103,8 +104,7 @@ void AutoConnect::serverLoop() {
     const long interval = 10000;
 
     server.begin(80);
-    Serial.print("AP IP address: ");
-    Serial.println(WiFi.softAPIP());
+    Logger(LN, "AP IP address: %s", WiFi.softAPIP().toString());
 
     while (1) {
         WiFiClient client = server.available();
@@ -112,18 +112,16 @@ void AutoConnect::serverLoop() {
             while (client.connected()) {
                 if (client.available()) {
                     String data = client.readStringUntil('\n');
-                    Serial.println("Received data: " + data);
                     if (data == "\r") {
-                        Serial.println("Reading body:");
                         String body = "";
                         while (client.available()) {
                             char c = client.read();
-                            Serial.print(c);
                             body += c;
                         }
+                        Logger(LN, "Receive body: %s", body.c_str());
 
                         bool result = _getWifiAuthenFromServer(body);
-                        Serial.println("Client disconnected");
+                        Logger(LN, "Client disconnected");
                         if (result) {
                             client.println("HTTP/1.1 200 OK");
                             client.println("Connection: close");
@@ -131,6 +129,7 @@ void AutoConnect::serverLoop() {
                             client.println();
                             client.println("Received body content: true" + body);
                             client.stop();
+                            delay(2000);
                             pWiFi.mode(WIFI_STA);
                             return;
                         } else {
@@ -150,29 +149,25 @@ void AutoConnect::serverLoop() {
         if (currentMillis - previousMillis >= interval) {
             int numStations = WiFi.softAPgetStationNum();
             if (numStations > 0) {
-                Serial.print("AP connected. Number of connected stations: ");
-                Serial.println(numStations);
+                Logger(LN, "AP connected. Number of connected stations: %d", numStations);
             }
             previousMillis = currentMillis;
         }
     }
 
-    Serial.println("\nServer Stop");
+    Logger(LN, "Server Stop");
 }
 
 bool AutoConnect::_getWifiAuthenFromServer(String info) {
     StaticJsonDocument<96> j_wifi;
     DeserializationError error = deserializeJson(j_wifi, info);
     if (error) {
-        Serial.printf("deserialize wifi data Failed: %s\n", error.c_str());
+        Logger(LE, "deserialize wifi data Failed: %s", error.c_str());
         return false;
     }
 
     String ssid = j_wifi["message"]["SSID"];
     String password = j_wifi["message"]["PASSWORD"];
-
-    Serial.printf("\nSSID: %s  PASSWORD: %s\n", ssid, password);
-    Serial.println("WIFI data load complete\n");
 
     bool result = _tryConnect(ssid, password);
     if (result) {
@@ -187,18 +182,18 @@ bool AutoConnect::_tryConnect(String ssid, String password) {
     const long interval = 500;
     int connectCount = 0;
     pWiFi.begin(ssid.c_str(), password.c_str());
-    Serial.print("WiFi Connecting...");
+    Logger(LN, "WiFi Connecting...");
 
     while (1) {
         unsigned long currentMillis = millis();
         if (currentMillis - previousMillis >= interval) {
             connectCount++;
-            Serial.print(".");
+
             if (pWiFi.status() == WL_CONNECTED) {
-                Serial.println("\nWiFi Connected!");
+                Logger(LN, "WiFi Connected!");
                 return true;
             } else if (connectCount > 40) {
-                Serial.println("\nWiFi Connected Faild!");
+                Logger(LW, "WiFi Connected Faild!");
                 return false;
             }
             previousMillis = currentMillis;

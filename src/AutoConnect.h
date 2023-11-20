@@ -2,9 +2,10 @@
 
 #ifndef __AUTOCONNECT_H_
 #define __AUTOCONNECT_H_
+
 #include "ArduinoJson.h"
 #include "LITTLEFSFUN/littlefsfun.h"
-
+#include "loggerESP/loggerESP.h"
 #include <WiFi.h>
 
 class AutoConnect {
