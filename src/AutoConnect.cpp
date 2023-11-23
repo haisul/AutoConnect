@@ -153,6 +153,8 @@ void AutoConnect::serverLoop() {
             }
             previousMillis = currentMillis;
         }
+
+        vTaskDelay(10);
     }
 
     Logger(LN, "Server Stop");
